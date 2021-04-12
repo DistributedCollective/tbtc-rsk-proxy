@@ -1,3 +1,7 @@
+function isString(x) {
+    return Object.prototype.toString.call(x) === "[object String]"
+  }
+
 function prefixCheck(obj) {
     if(!obj || obj.length < 4) {
         return false
@@ -13,11 +17,12 @@ const shortEncodingKeys = ["nonce", "gasPrice", "gasLimit", "value", "input", "v
 
 module.exports = {
     do: function(res) {
-        this.leadingZeroes(res)
+        if(!isString(res)) {
+            this.leadingZeroes(res)
+        }
     },
 
     leadingZeroes: function(json) {
-
         json.transactions.forEach(t => {
             for(const key in t) {
                 if(requiredKeys.includes(key) && t[key] == null) {
@@ -28,7 +33,5 @@ module.exports = {
                 }
             }
         })
-
-        console.log('a')
     },
 }
