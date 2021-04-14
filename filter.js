@@ -27,36 +27,50 @@ module.exports = {
         return transform
     },
 
+
     gather: function(chunk, encoding, transform) {
         if(this.info == null) {
             this.info = this.parseHeader(chunk.buffer)
+            this.buffer = Buffer.alloc(0)
         }
             
         const chunkSize = chunk.length
         const left = this.info.totalSize - this.buffer.length
+        console.log('chunkSize:', chunkSize, '  totalSize:', this.info.totalSize,"  left:", left)
         if(left < 0) {
             console.log('error')
             return
         }
 
         if(chunkSize < left) {
+            console.log('chunkSize < left')
             this.buffer = Buffer.concat([this.buffer, chunk])
         }else if(chunkSize == left) {
+            console.log('chunkSize == left')
             this.buffer = Buffer.concat([this.buffer, chunk])
             this.edit(this.info, this.buffer, transform)
-
-            this.buffer = Buffer.alloc(0)
             this.info = null
+
         }else if(chunkSize > left) {
+            console.log('chunkSize > left', chunkSize, left)
             const toCopy = chunk.slice(0, left)
             this.buffer = Buffer.concat([this.buffer, toCopy])
-            this.edit(this.info, this.buffer, transform)
 
-            this.buffer = Buffer.alloc(0)
+            const chunkContent = String(chunk)
+            const bufferContent = String(this.buffer)
+            const toCopyContent = String(toCopy)
+            this.edit(this.info, this.buffer, transform)
             this.info = null
 
-            this.buffer = chunk.slice(left-1)
-            this.info = this.parseHeader(this.buffer.buffer)
+            const restLength = chunkSize - left
+            const rest = chunk.slice(left)
+            const restContent = String(rest)
+
+            const dBuffer = Buffer.alloc(rest.length)
+            rest.copy(dBuffer)
+            this.info = this.parseHeader(dBuffer.buffer)
+            this.buffer = Buffer.alloc(0)
+            this.gather(rest, encoding, transform)
         }
     },
 
@@ -120,10 +134,14 @@ module.exports = {
     fix: function(json) {
         if(isArray(json)) {
             for(const rpc of json) {
-                fixes.do(rpc.result)
+                if(rpc.result) {
+                    fixes.do(rpc.result)
+                }
             }
         }else {
-            fixes.do(json.result)
+            if(json.result) {
+                fixes.do(json.result)
+            }
         }
         return json
     }
