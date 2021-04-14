@@ -138,11 +138,6 @@ module.exports = class SocketProxy {
         }
         const originalMessage = String(message)
         var json = JSON.parse(originalMessage)
-
-        console.log('----------')
-        console.log(originalMessage)
-        // console.log(json)
-        console.log('----------')
         
         json = this.editCallback(json) || json
         

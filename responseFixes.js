@@ -20,22 +20,22 @@ const requiredKeys = ['v', 'r', 's']
 const shortEncodingKeys = ["nonce", "gasPrice", "gasLimit", "value", "input", "v", "r", "s"]
 
 module.exports = {
-    fix: function(json) {
+    apply: function(json) {
         if(isArray(json)) {
             for(const rpc of json) {
                 if(rpc.result) {
-                    this.do(rpc.result)
+                    this.fixResult(rpc.result)
                 }
             }
         }else {
             if(json.result) {
-                this.do(json.result)
+                this.fixResult(json.result)
             }
         }
         return json
     },
 
-    do: function(res) {
+    fixResult: function(res) {
         if(!isString(res)) {
             this.leadingZeroes(res)
         }

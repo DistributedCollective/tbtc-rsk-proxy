@@ -1,5 +1,6 @@
-const fixes = require('./fixes')
-const debug = require('./debug')
+const responseFixes = require('./responseFixes')
+const requestFixes = require('./requestFixes')
+const logger = require('./logger')
 
 const SocketProxy = require('./socketProxy')
 
@@ -8,24 +9,21 @@ module.exports = {
         const requestProxy = new SocketProxy()
         const responseProxy = new SocketProxy()
 
+        logger.match = false
+
         responseProxy.editCallback = (json) => {
-            fixes.fix(json)
+            logger.logResponse(json)
+            responseFixes.apply(json)
         }
 
         requestProxy.editCallback = (json) => {
-            debug.log(json)
+            logger.logRequest(json)
+            requestFixes.apply(json)
         }
 
         const responseTransform = responseProxy.transform()
         const requestTransform = requestProxy.transform()
 
-        //full
         client.pipe(requestTransform).pipe(proxySocket).pipe(responseTransform).pipe(client)
-
-        //response mod
-        // client.pipe(proxySocket).pipe(responseTransform).pipe(client)
-
-        //request mod
-        // client.pipe(requestTransform).pipe(proxySocket).pipe(client)
     }
 }
