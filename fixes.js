@@ -1,6 +1,10 @@
+function isArray(what) {
+    return Object.prototype.toString.call(what) === '[object Array]';
+}
+
 function isString(x) {
     return Object.prototype.toString.call(x) === "[object String]"
-  }
+}
 
 function prefixCheck(obj) {
     if(!obj || obj.length < 4) {
@@ -16,6 +20,21 @@ const requiredKeys = ['v', 'r', 's']
 const shortEncodingKeys = ["nonce", "gasPrice", "gasLimit", "value", "input", "v", "r", "s"]
 
 module.exports = {
+    fix: function(json) {
+        if(isArray(json)) {
+            for(const rpc of json) {
+                if(rpc.result) {
+                    this.do(rpc.result)
+                }
+            }
+        }else {
+            if(json.result) {
+                this.do(json.result)
+            }
+        }
+        return json
+    },
+
     do: function(res) {
         if(!isString(res)) {
             this.leadingZeroes(res)

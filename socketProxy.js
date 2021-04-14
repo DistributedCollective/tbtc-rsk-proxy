@@ -1,22 +1,11 @@
 var stream = require('stream')
-var fixes = require('./fixes')
 
-function isArray(what) {
-    return Object.prototype.toString.call(what) === '[object Array]';
-}
 
-module.exports = {
-    buffer: Buffer.alloc(0),
+module.exports = class SocketProxy {
+    editCallback = function(json){}
+    buffer = Buffer.alloc(0)
 
-    bindSockets: function(clientSocket, appSocket) {
-        const transform = this.transformStream()
-        clientSocket.pipe(appSocket)
-
-        appSocket.pipe(transform)
-        transform.pipe(clientSocket)
-    },
-
-    transformStream: function() {
+    transform() {
         var transform = new stream.Transform()
 
         const _filter = this
@@ -25,10 +14,9 @@ module.exports = {
             done()
         }
         return transform
-    },
+    }
 
-
-    gather: function(chunk, encoding, transform) {
+    gather(chunk, encoding, transform) {
         if(this.info == null) {
             this.info = this.parseHeader(chunk.buffer)
             this.buffer = Buffer.alloc(0)
@@ -36,23 +24,19 @@ module.exports = {
             
         const chunkSize = chunk.length
         const left = this.info.totalSize - this.buffer.length
-        console.log('chunkSize:', chunkSize, '  totalSize:', this.info.totalSize,"  left:", left)
         if(left < 0) {
             console.log('error')
             return
         }
 
         if(chunkSize < left) {
-            console.log('chunkSize < left')
             this.buffer = Buffer.concat([this.buffer, chunk])
         }else if(chunkSize == left) {
-            console.log('chunkSize == left')
             this.buffer = Buffer.concat([this.buffer, chunk])
             this.edit(this.info, this.buffer, transform)
             this.info = null
 
         }else if(chunkSize > left) {
-            console.log('chunkSize > left', chunkSize, left)
             const toCopy = chunk.slice(0, left)
             this.buffer = Buffer.concat([this.buffer, toCopy])
 
@@ -72,12 +56,13 @@ module.exports = {
             this.buffer = Buffer.alloc(0)
             this.gather(rest, encoding, transform)
         }
-    },
+    }
 
-    parseHeader: function(buffer) {
+    parseHeader(buffer) {
         const header = new DataView(buffer)
         const l1r = header.getUint8(1)
         const l1 = l1r & 127
+        const masked = (l1r & 128) ? 1 : 0
 
         let headerSize 
         let payloadSize
@@ -91,31 +76,75 @@ module.exports = {
             headerSize = 8
             payloadSize = header.getBigUint64(4, false)
         }
+
+        let mask = null
+        if(masked) {
+            mask = []
+            mask[0] = header.getUint8(headerSize)
+            mask[1] = header.getUint8(headerSize+1)
+            mask[2] = header.getUint8(headerSize+2)
+            mask[3] = header.getUint8(headerSize+3)
+            headerSize += 4
+        }
+
         return {
             headerSize: headerSize,
             payloadSize: payloadSize,
-            totalSize: headerSize + payloadSize
+            totalSize: headerSize + payloadSize,
+            masked: masked,
+            mask: mask
         }
-    },
+    }
 
-    updateHeader: function(buffer, modPayloadLen) {
+    applyMask(message, size, mask) {
+        for(let i = 0; i < size; i++) {
+            message[i] = message[i] ^ mask[i % 4]
+        }
+    }
+
+    updateHeader(buffer, modPayloadLen, mask = null) {
         const header = new DataView(buffer)
-        if(modPayloadLen < 126) {
-            header.setUint8(1, modPayloadLen)
-        }else if(modPayloadLen >= 126) {
-            header.setUint8(1, 126)
-            header.setUint16(2, modPayloadLen, false)
-        }else if(modPayloadLen > 65535) {
-            header.setUint8(1, 127)
-            header.setUint64(4, modPayloadLen, false)
-        }
-    },
 
-    edit: function(info, buffer, transform) {
-        const originalMessage = String(buffer.slice(info.headerSize))
+        let headerSize = 2
+        let headerSizeValue = 0
+        if(modPayloadLen < 126) {
+            headerSizeValue = modPayloadLen
+            headerSize = 2
+        }else if(modPayloadLen >= 126) {
+            headerSizeValue = 126
+            header.setUint16(2, modPayloadLen, false)
+            headerSize = 4
+        }else if(modPayloadLen > 65535) {
+            headerSizeValue = 127
+            header.setUint64(4, modPayloadLen, false)
+            headerSize = 8
+        }
+        
+        if(mask) {
+            headerSizeValue = headerSizeValue | 128
+            header.setUint8(headerSize, mask[0])
+            header.setUint8(headerSize+1, mask[1])
+            header.setUint8(headerSize+2, mask[2])
+            header.setUint8(headerSize+3, mask[3])
+        }
+
+        header.setUint8(1, headerSizeValue)
+    }
+
+    edit(info, buffer, transform) {
+        let message = buffer.slice(info.headerSize)
+        if(info.masked) {
+            this.applyMask(message, info.payloadSize, info.mask)
+        }
+        const originalMessage = String(message)
         var json = JSON.parse(originalMessage)
 
-        json = this.fix(json)
+        console.log('----------')
+        console.log(originalMessage)
+        // console.log(json)
+        console.log('----------')
+        
+        json = this.editCallback(json) || json
         
         const modJsonString = JSON.stringify(json)
         const modJsonStringLen = modJsonString.length
@@ -123,26 +152,15 @@ module.exports = {
         const modHeader = Buffer.alloc(info.headerSize, 0)
         buffer.copy(modHeader, 0, 0, info.headerSize)
 
-        this.updateHeader(modHeader.buffer, modJsonStringLen)
+        this.updateHeader(modHeader.buffer, modJsonStringLen, info.mask)
 
-        const finalModBuff = Buffer.concat([modHeader, Buffer.from(modJsonString)])
 
-        const debug = finalModBuff.toString()
-        transform.push(finalModBuff)
-    },
-
-    fix: function(json) {
-        if(isArray(json)) {
-            for(const rpc of json) {
-                if(rpc.result) {
-                    fixes.do(rpc.result)
-                }
-            }
-        }else {
-            if(json.result) {
-                fixes.do(json.result)
-            }
+        let payloadBuffer = Buffer.from(modJsonString)
+        if(info.masked) {
+            this.applyMask(payloadBuffer, payloadBuffer.length, info.mask)
         }
-        return json
+
+        const finalModBuff = Buffer.concat([modHeader, payloadBuffer])
+        transform.push(finalModBuff)
     }
 }

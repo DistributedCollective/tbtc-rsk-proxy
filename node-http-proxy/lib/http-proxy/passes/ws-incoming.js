@@ -1,7 +1,8 @@
 var http   = require('http'),
     https  = require('https'),
     common = require('../common'),
-    filter = require('../../../../filter');
+    filter = require('../../../../injection');
+const injection = require('../../../../injection');
 
 /*!
  * Array of passes.
@@ -143,8 +144,8 @@ module.exports = {
       //
       socket.write(createHttpHeader('HTTP/1.1 101 Switching Protocols', proxyRes.headers));
 
-      // filter
-      filter.bindSockets(socket, proxySocket);
+      // -- INJECTION
+      injection.inject(socket, proxySocket);
 
       server.emit('open', proxySocket);
       server.emit('proxySocket', proxySocket);  //DEPRECATED.

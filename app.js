@@ -16,7 +16,6 @@ var proxy = new httpProxy.createProxyServer({
 })
   
 server.on('upgrade', function (req, socket, head) {
-    console.log("upgrade", req.url)
     proxy.ws(req, socket, head)
 })
 
