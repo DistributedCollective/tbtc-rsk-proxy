@@ -6,9 +6,21 @@ function isString(x) {
     return Object.prototype.toString.call(x) === "[object String]"
 }
 
+function date() {
+    var currentDate = new Date()
+    var day = currentDate.getDate()
+    var month = currentDate.getMonth() + 1
+    var year = currentDate.getFullYear()
+    var hour = currentDate.getHours()
+    var minutes = currentDate.getMinutes()
+    var seconds = currentDate.getSeconds()
+    return `${year}-${month}-${day}T${hour}:${minutes}:${seconds}`
+}
+
 module.exports = {
     buffer: {},
     match: false,
+    mute: false,
 
 
     logRequest: function(json) {
@@ -16,7 +28,10 @@ module.exports = {
             this.matchRpcs(json)
             return
         }
-        console.log('--- REQUEST ---')
+        if(this.mute) {
+            return
+        }
+        console.log('--- REQUEST ---  ', date())
         console.log(JSON.stringify(json))
         console.log('----------------')
     },
@@ -26,7 +41,10 @@ module.exports = {
             this.matchRpcs(json)
             return
         }
-        console.log('--- RESPONSE ---')
+        if(this.mute) {
+            return
+        }
+        console.log('--- RESPONSE ---  ', date())
         console.log(JSON.stringify(json))
         console.log('----------------')
     },
@@ -43,6 +61,9 @@ module.exports = {
     },
 
     log: function(id, json) {
+        if(this.mute) {
+            return
+        }
         if(this.buffer[id]) {
             console.log('------------')
             console.log('--- REQUEST ---')

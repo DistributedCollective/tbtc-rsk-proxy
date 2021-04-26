@@ -10,6 +10,7 @@ module.exports = {
         const responseProxy = new SocketProxy()
 
         logger.match = false
+        logger.mute = false
 
         responseProxy.editCallback = (json) => {
             logger.logResponse(json)

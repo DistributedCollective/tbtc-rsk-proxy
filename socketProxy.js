@@ -33,22 +33,17 @@ module.exports = class SocketProxy {
             this.buffer = Buffer.concat([this.buffer, chunk])
         }else if(chunkSize == left) {
             this.buffer = Buffer.concat([this.buffer, chunk])
-            this.edit(this.info, this.buffer, transform)
+            this.unpack(this.info, this.buffer, transform)
             this.info = null
 
         }else if(chunkSize > left) {
             const toCopy = chunk.slice(0, left)
             this.buffer = Buffer.concat([this.buffer, toCopy])
 
-            const chunkContent = String(chunk)
-            const bufferContent = String(this.buffer)
-            const toCopyContent = String(toCopy)
-            this.edit(this.info, this.buffer, transform)
+            this.unpack(this.info, this.buffer, transform)
             this.info = null
 
-            const restLength = chunkSize - left
             const rest = chunk.slice(left)
-            const restContent = String(rest)
 
             const dBuffer = Buffer.alloc(rest.length)
             rest.copy(dBuffer)
@@ -60,6 +55,10 @@ module.exports = class SocketProxy {
 
     parseHeader(buffer) {
         const header = new DataView(buffer)
+        
+        const fields = header.getUint8(0)
+        const fin = (fields & 128) ? 1 : 0
+
         const l1r = header.getUint8(1)
         const l1 = l1r & 127
         const masked = (l1r & 128) ? 1 : 0
@@ -88,6 +87,7 @@ module.exports = class SocketProxy {
         }
 
         return {
+            fin: fin,
             headerSize: headerSize,
             payloadSize: payloadSize,
             totalSize: headerSize + payloadSize,
@@ -131,14 +131,42 @@ module.exports = class SocketProxy {
         header.setUint8(1, headerSizeValue)
     }
 
+    unpack(info, buffer, transform) {
+        if(!info.fin) {
+            transform.push(buffer)
+            return
+        }
+
+        this.edit(info, buffer, transform)
+    }
+
     edit(info, buffer, transform) {
         let message = buffer.slice(info.headerSize)
+        if(message == null) {
+            console.error("message slice null")
+        }
         if(info.masked) {
             this.applyMask(message, info.payloadSize, info.mask)
         }
+        if(message == null) {
+            console.error("applyMaskNull")
+        }
         const originalMessage = String(message)
-        var json = JSON.parse(originalMessage)
+
+        var json = null
+        try {
+            json = JSON.parse(originalMessage)
+        } catch(error) {
+            console.log("Not a json: ", error);
+        }
         
+        if(!json) {
+            if(info.masked) {
+                this.applyMask(message, info.payloadSize, info.mask)
+            }
+            transform.push(buffer)
+            return 
+        }
         json = this.editCallback(json) || json
         
         const modJsonString = JSON.stringify(json)
@@ -148,7 +176,6 @@ module.exports = class SocketProxy {
         buffer.copy(modHeader, 0, 0, info.headerSize)
 
         this.updateHeader(modHeader.buffer, modJsonStringLen, info.mask)
-
 
         let payloadBuffer = Buffer.from(modJsonString)
         if(info.masked) {

@@ -20,6 +20,11 @@ server.on('upgrade', function (req, socket, head) {
 })
 
 
-const port = process.env.PROXY_PORT || 5051
+let port = process.env.PROXY_PORT || 5056
+const increment = process.env.NODE_APP_INSTANCE
+if(increment != null) {
+    port += Number(increment)
+}
+
 console.log("Listening at:", port)
 server.listen(port);

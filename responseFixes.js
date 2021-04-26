@@ -16,8 +16,8 @@ function prefixCheck(obj) {
     return true
 }
 
-const requiredKeys = ['v', 'r', 's']
-const shortEncodingKeys = ["nonce", "gasPrice", "gasLimit", "value", "input", "v", "r", "s"]
+const requiredKeys = ['v', 'r', 's', "input", "value"]
+const shortEncodingKeys = ["nonce", "gasPrice", "gasLimit", "value", "v", "r", "s"]
 
 module.exports = {
     apply: function(json) {
@@ -42,6 +42,9 @@ module.exports = {
     },
 
     leadingZeroes: function(json) {
+        if(!json.transactions) {
+            return
+        }
         json.transactions.forEach(t => {
             for(const key in t) {
                 if(requiredKeys.includes(key) && t[key] == null) {
