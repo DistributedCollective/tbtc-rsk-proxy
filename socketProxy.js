@@ -2,8 +2,10 @@ var stream = require('stream')
 
 
 module.exports = class SocketProxy {
+    MTU = 65000
     editCallback = function(json){}
     buffer = Buffer.alloc(0)
+    messageBuffer = Buffer.alloc(0)
 
     transform() {
         var transform = new stream.Transform()
@@ -76,6 +78,8 @@ module.exports = class SocketProxy {
             payloadSize = header.getBigUint64(4, false)
         }
 
+        const opcode = fields & 15
+
         let mask = null
         if(masked) {
             mask = []
@@ -92,7 +96,8 @@ module.exports = class SocketProxy {
             payloadSize: payloadSize,
             totalSize: headerSize + payloadSize,
             masked: masked,
-            mask: mask
+            mask: mask,
+            opcode: opcode
         }
     }
 
@@ -102,22 +107,28 @@ module.exports = class SocketProxy {
         }
     }
 
-    updateHeader(buffer, modPayloadLen, mask = null) {
-        const header = new DataView(buffer)
-
+    createHeader(payloadLen, mask = null, fin = true, opcode = 1) {
         let headerSize = 2
         let headerSizeValue = 0
-        if(modPayloadLen < 126) {
-            headerSizeValue = modPayloadLen
+        if(payloadLen < 126) {
+            headerSizeValue = payloadLen
             headerSize = 2
-        }else if(modPayloadLen >= 126) {
+        }else if(payloadLen >= 126 && payloadLen < 65535) {
             headerSizeValue = 126
-            header.setUint16(2, modPayloadLen, false)
             headerSize = 4
-        }else if(modPayloadLen > 65535) {
+        }else if(payloadLen > 65535) {
             headerSizeValue = 127
-            header.setUint64(4, modPayloadLen, false)
             headerSize = 8
+        }
+
+        const totalHeaderSize = mask ? headerSize + 4 : headerSize
+        const headerBuffer = Buffer.alloc(totalHeaderSize)
+        const header = new DataView(headerBuffer.buffer)
+
+        if(headerSizeValue == 126) {
+            header.setUint16(2, payloadLen, false)
+        }else if(headerSizeValue == 127) {
+            header.setUint64(4, payloadLen, false)
         }
         
         if(mask) {
@@ -128,61 +139,70 @@ module.exports = class SocketProxy {
             header.setUint8(headerSize+3, mask[3])
         }
 
+        if(fin) {
+            const value = 128 | opcode
+            header.setUint8(0, value)
+        }else {
+            header.setUint8(0, opcode)
+        }
         header.setUint8(1, headerSizeValue)
+
+        return headerBuffer
     }
 
     unpack(info, buffer, transform) {
+        if(info.opcode == 9 || info.opcode == 10) {
+            console.log('ping-pong')
+            this.send(buffer, info.mask, transform, true, info.opcode)
+            return
+        }
+        let payload = buffer.slice(info.headerSize)
+        if(info.masked) {
+            this.applyMask(payload, info.payloadSize, info.mask)
+        }
+
+        this.messageBuffer = Buffer.concat([this.messageBuffer, payload])
         if(!info.fin) {
-            transform.push(buffer)
+            console.log('--not fin!---')
             return
         }
 
-        this.edit(info, buffer, transform)
+        const originalMessage = String(this.messageBuffer)
+        const modifiedMessage = this.update(originalMessage)
+        this.messageBuffer = Buffer.alloc(0)
+
+        let left = modifiedMessage.length
+        let position = 0
+        let iteration = 0
+        while(left > 0) {
+            let portion = left > this.MTU ? this.MTU : left
+
+            const part = modifiedMessage.slice(position, position + portion)
+            position += portion
+            left-= portion
+
+            const fin = (left <= 0)
+            const opcode = (iteration == 0) ? 1 : 0
+            const payloadBuffer = Buffer.from(part)
+            this.send(payloadBuffer, info.mask, transform, fin, opcode)
+            iteration++
+        }
     }
 
-    edit(info, buffer, transform) {
-        let message = buffer.slice(info.headerSize)
-        if(message == null) {
-            console.error("message slice null")
-        }
-        if(info.masked) {
-            this.applyMask(message, info.payloadSize, info.mask)
-        }
-        if(message == null) {
-            console.error("applyMaskNull")
-        }
-        const originalMessage = String(message)
-
-        var json = null
-        try {
-            json = JSON.parse(originalMessage)
-        } catch(error) {
-            console.log("Not a json: ", error);
-        }
-        
-        if(!json) {
-            if(info.masked) {
-                this.applyMask(message, info.payloadSize, info.mask)
-            }
-            transform.push(buffer)
-            return 
-        }
+    update(message) {
+        let json = JSON.parse(message)
         json = this.editCallback(json) || json
+        return JSON.stringify(json)
+    }
+
+    send(payload, mask, transform, fin, opcode) {
+        const headerBuffer = this.createHeader(payload.length, mask, fin, opcode)
         
-        const modJsonString = JSON.stringify(json)
-        const modJsonStringLen = modJsonString.length
-
-        const modHeader = Buffer.alloc(info.headerSize, 0)
-        buffer.copy(modHeader, 0, 0, info.headerSize)
-
-        this.updateHeader(modHeader.buffer, modJsonStringLen, info.mask)
-
-        let payloadBuffer = Buffer.from(modJsonString)
-        if(info.masked) {
-            this.applyMask(payloadBuffer, payloadBuffer.length, info.mask)
+        if(mask) {
+            this.applyMask(payload, payload.length, mask)
         }
 
-        const finalModBuff = Buffer.concat([modHeader, payloadBuffer])
-        transform.push(finalModBuff)
+        const packet = Buffer.concat([headerBuffer, payload])
+        transform.push(packet)
     }
 }
