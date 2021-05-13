@@ -2,10 +2,12 @@ var stream = require('stream')
 
 
 module.exports = class SocketProxy {
-    MTU = 65000
-    editCallback = function(json){}
-    buffer = Buffer.alloc(0)
-    messageBuffer = Buffer.alloc(0)
+    constructor() {
+        this.MTU = 65000
+        this.editCallback = function(json){}
+        this.buffer = Buffer.alloc(0)
+        this.messageBuffer = Buffer.alloc(0)
+    }
 
     transform() {
         var transform = new stream.Transform()
