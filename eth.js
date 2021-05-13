@@ -52,7 +52,7 @@ if(httpMode) {
 }
 
 
-let port = process.env.PROXY_PORT || 5050
+let port = Number(process.env.PROXY_PORT || 5050)
 const increment = process.env.NODE_APP_INSTANCE
 if(increment != null) {
     port += Number(increment)
