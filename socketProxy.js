@@ -3,7 +3,7 @@ var stream = require('stream')
 
 module.exports = class SocketProxy {
     constructor() {
-        this.MTU = 65000
+        this.MTU = 60000
         this.editCallback = function(json){}
         this.buffer = Buffer.alloc(0)
         this.messageBuffer = Buffer.alloc(0)
@@ -165,7 +165,6 @@ module.exports = class SocketProxy {
 
         this.messageBuffer = Buffer.concat([this.messageBuffer, payload])
         if(!info.fin) {
-            console.log('--not fin!---')
             return
         }
 

@@ -1,27 +1,17 @@
 const http = require('http')
 const httpProxy = require('./node-http-proxy/lib/http-proxy')
 
-
-const rpcUrl = 'https://testnet.sovryn.app/rpc'
-const rpcPort = 443
-const websocketUrl = 'wss://testnet.sovryn.app/ws'
-const websocketPort = 443
-
 const httpMode = process.env.HTTP_MODE
+const targetUrl = process.env.TARGET_URL
+const targetPort = process.env.TARGET_PORT
 
 let proxy
 let server
 
-if(httpMode) {
-    console.log("Starting in HTTP RPC MODE")
-}else {
-    console.log("Starting in WEBSOCKET RPC MODE")
-}
-
-if(httpMode) {
+if(httpMode == 1) {
     proxy = new httpProxy.createProxyServer({
-        target: rpcUrl,
-        port: rpcPort,
+        target: targetUrl,
+        port: targetPort,
         changeOrigin: true,
         ignorePath: true,
         hostRewrite: true,
@@ -36,8 +26,8 @@ if(httpMode) {
     })
 }else {
     proxy = new httpProxy.createProxyServer({
-        target: websocketUrl,
-        port: websocketPort,
+        target: targetUrl,
+        port: targetPort,
         changeOrigin: true,
         ignorePath: true,
         hostRewrite: true,
@@ -58,5 +48,5 @@ if(increment != null) {
     port += Number(increment)
 }
 
-console.log("Listening at:", port)
+console.log(`--- ${httpMode == 1 ? 'Http' : 'Websocket'} mode --- \n--- Target: ${targetUrl}:${targetPort} - Listening at: ${port} ---`)
 server.listen(port)

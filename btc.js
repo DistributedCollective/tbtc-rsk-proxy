@@ -1,15 +1,18 @@
-const request = require('request');
-var express = require('express');
-var app = express();
+const request = require('request')
+var express = require('express')
+var app = express()
 
-app.use(express.json());
-app.use(express.urlencoded()); 
+app.use(express.json())
+app.use(express.urlencoded())
 
-const rpcUrl = 'http://127.0.0.1:18332'
-const username = 'user'
-const password = 'password'
+const targetUrl = process.env.TARGET_URL
+const targetPort = process.env.TARGET_PORT
+const username = process.env.TARGET_USERNAME
+const password = process.env.TARGET_PASSWORD
+const port = process.env.PROXY_PORT
 
-
+const url = targetUrl + ":" + targetPort
+let requestId = 0
 
 app.post('/', function(req, res){
     const json = req.body
@@ -24,9 +27,6 @@ app.post('/', function(req, res){
     }
 
     requestPromise.then(response => {
-        if(!response.error) {
-            console.log(response.result.height)
-        }
         const returnValue = JSON.stringify(response)
         res.setHeader('content-type', 'application/json')
         res.send(JSON.stringify(returnValue))
@@ -36,21 +36,25 @@ app.post('/', function(req, res){
     
 });
 
-app.listen(6060);
-
-let id = 0
+console.log(`Target: ${targetUrl}:${targetPort} - Listening at: ${port} ---`)
+app.listen(port)
 
 async function rpcRequest(method, params) {
-    id++
+    if(requestId == Number.MAX_SAFE_INTEGER) {
+        requestId = 0
+    }else {
+        requestId++
+    }
+
     const body = {
         "jsonrpc": "1.0",
-        "id": String(id),
+        "id": String(requestId),
         method: method,
         params: params || []
     }
 
     return new Promise((resolve, reject) => {
-        request.post(rpcUrl, {
+        request.post(url, {
             json: true,
             auth: {
                 user: username,
@@ -65,7 +69,6 @@ async function rpcRequest(method, params) {
                 reject(error)
             }
         })
-
     })
 }
 

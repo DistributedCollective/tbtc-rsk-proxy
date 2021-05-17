@@ -22,7 +22,6 @@ module.exports = {
     match: false,
     mute: false,
 
-
     logRequest: function(json) {
         if(this.match) {
             this.matchRpcs(json)

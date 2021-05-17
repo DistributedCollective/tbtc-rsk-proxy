@@ -9,8 +9,8 @@ module.exports = {
         const requestProxy = new SocketProxy()
         const responseProxy = new SocketProxy()
 
-        logger.match = false
-        logger.mute = false
+        logger.match = (process.env.MATCH_REQUESTS == 1)
+        logger.mute = (process.env.MUTE_LOGGING == 1)
 
         responseProxy.editCallback = (json) => {
             logger.logResponse(json)
