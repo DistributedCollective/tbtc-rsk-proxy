@@ -11,7 +11,7 @@ const username = process.env.TARGET_USERNAME
 const password = process.env.TARGET_PASSWORD
 const port = process.env.PROXY_PORT
 
-const url = targetUrl + ":" + targetPort
+const url = "http://" + targetUrl + ":" + targetPort
 let requestId = 0
 
 app.post('/', function(req, res){
