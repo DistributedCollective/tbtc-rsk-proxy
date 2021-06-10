@@ -28,6 +28,7 @@ app.post('/', function(req, res){
 
     requestPromise.then(response => {
         const returnValue = JSON.stringify(response)
+        console.log(returnValue)
         res.setHeader('content-type', 'application/json')
         res.send(JSON.stringify(returnValue))
     }).catch(error => {
