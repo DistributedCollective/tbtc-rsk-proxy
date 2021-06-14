@@ -30,7 +30,7 @@ app.post('/', function(req, res){
         const returnValue = JSON.stringify(response)
         console.log(returnValue)
         res.setHeader('content-type', 'application/json')
-        res.send(JSON.stringify(returnValue))
+        res.send(returnValue)
     }).catch(error => {
         console.log(error)
     })
