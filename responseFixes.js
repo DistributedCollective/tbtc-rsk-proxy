@@ -23,16 +23,26 @@ module.exports = {
     apply: function(json) {
         if(isArray(json)) {
             for(const rpc of json) {
-                if(rpc.result) {
+                if(json.method == "eth_subscription") {
+                    this.fixNullData(json)
+                }else if(rpc.result) {
                     this.fixResult(rpc.result)
                 }
             }
         }else {
-            if(json.result) {
+            if(json.method == "eth_subscription") {
+                this.fixNullData(json)
+            }else if(json.result) {
                 this.fixResult(json.result)
             }
         }
         return json
+    },
+
+    fixNullData: function(json) {
+        if (json.result && json.result.topics.lenght > 0 && json.result.topics[0].includes("0x34f611be")) {
+            json.result.data=null
+        }
     },
 
     fixResult: function(res) {
