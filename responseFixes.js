@@ -40,8 +40,8 @@ module.exports = {
     },
 
     fixNullData: function(json) {
-        if (json.result && json.result.topics.lenght > 0 && json.result.topics[0].includes("0x34f611be")) {
-            json.result.data=null
+        if (json.params && json.params.result && json.params.result.topics.length > 0 && json.params.result.topics[0].includes("0x34f611be")) {
+            json.params.result.data=null
         }
     },
 
