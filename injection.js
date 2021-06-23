@@ -13,13 +13,13 @@ module.exports = {
         logger.mute = (process.env.MUTE_LOGGING == 1)
 
         responseProxy.editCallback = (json) => {
-            logger.logResponse(json)
-            responseFixes.apply(json)
+            const result = responseFixes.apply(json)
+            logger.logResponse(json, (result.modCount > 0))
         }
 
         requestProxy.editCallback = (json) => {
-            logger.logRequest(json)
-            requestFixes.apply(json)
+            const result = requestFixes.apply(json)
+            logger.logRequest(json, (result.modCount > 0))
         }
 
         const responseTransform = responseProxy.transform()

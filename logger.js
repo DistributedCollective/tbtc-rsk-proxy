@@ -22,7 +22,7 @@ module.exports = {
     match: false,
     mute: false,
 
-    logRequest: function(json) {
+    logRequest: function(json, modified = false) {
         if(this.match) {
             this.matchRpcs(json)
             return
@@ -30,12 +30,12 @@ module.exports = {
         if(this.mute) {
             return
         }
-        console.log('--- REQUEST ---  ', date())
+        console.log(`--- REQUEST --- ${modified ? "MODIFIED!" : ""} `, date())
         console.log(JSON.stringify(json))
         console.log('----------------')
     },
 
-    logResponse: function(json) {
+    logResponse: function(json, modified = false) {
         if(this.match) {
             this.matchRpcs(json)
             return
@@ -43,7 +43,7 @@ module.exports = {
         if(this.mute) {
             return
         }
-        console.log('--- RESPONSE ---  ', date())
+        console.log(`--- RESPONSE --- ${modified ? "MODIFIED!" : ""} `, date())
         console.log(JSON.stringify(json))
         console.log('----------------')
     },
