@@ -11,7 +11,15 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/eth.js"
+            "program": "${workspaceFolder}/eth.js",
+            "env": {
+                "TARGET_URL": "wss://testnet.sovryn.app/ws",
+                "TARGET_PORT": "443",
+                "PROXY_PORT": "5050",
+                "HTTP_MODE": "0",
+                "MATCH_REQUESTS": "0",
+                "MUTE_LOGGING": "0",
+            }
         },
         {
             "type": "pwa-node",
