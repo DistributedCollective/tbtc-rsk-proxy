@@ -41,7 +41,16 @@ module.exports = {
     },
 
     fixNullData: function(json) {
-        if (json.params && json.params.result && json.params.result.topics && json.params.result.topics.length > 0 && json.params.result.topics[0].includes("0x34f611be")) {
+        if (
+            json.params &&
+            json.params.result &&
+            json.params.result.topics &&
+            json.params.result.topics.length > 0 && (
+                json.params.result.topics[0].includes("0x34f611be") ||
+                json.params.result.topics[0].includes("0x400fd7ee") ||
+                json.params.result.topics[0].includes("0x39f530c1")
+            )
+        ) {
             delete json.params.result["data"]
             return 1
         }
