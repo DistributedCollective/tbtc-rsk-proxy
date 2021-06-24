@@ -51,7 +51,7 @@ module.exports = {
                 json.params.result.topics[0].includes("0x39f530c1")
             )
         ) {
-            json.params.result["data"] = null
+            json.params.result["data"] = "0x"
             return 1
         }
         return 0
